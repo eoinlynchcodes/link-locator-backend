@@ -33,7 +33,7 @@ app.use(cors());
 //middleware to read req.body.<params>
 
 //CREATE USER
-app.post("/createuser", async (req, res) => {
+app.post("/createUser", async (req, res) => {
   const username = req.body.username;
   const fullName = req.body.fullName;
   const hashedPassword = await bcrypt.hash(req.body.password, 10);
@@ -49,18 +49,13 @@ app.post("/createuser", async (req, res) => {
     ]);
     await connection.query(search_query, async (err, result) => {
       if (err) throw err;
-      console.log("------> Search Results");
-      console.log(result.length);
       if (result.length != 0) {
         connection.release();
-        console.log("------> User already exists");
         res.sendStatus(409);
       } else {
         await connection.query(insert_query, (err, result) => {
           connection.release();
           if (err) throw err;
-          console.log("--------> Created new User");
-          console.log(result.insertId);
           res.sendStatus(201);
         });
       }
@@ -80,23 +75,66 @@ app.post("/login", (req, res) => {
 
       if (err) throw err;
       if (result.length == 0) {
-        console.log("--------> User does not exist");
         res.sendStatus(404);
       } else {
         const hashedPassword = result[0].password;
+        const dataForLocalStorage = {
+          fullName: result[0].fullName,
+          userId: result[0].userId,
+          username: result[0].username,
+        };
         if (await bcrypt.compare(password, hashedPassword)) {
-          console.log("---------> Login Successful");
-          res.send(`${username} is logged in!`);
+          res.status(200).send(dataForLocalStorage);
         } else {
-          console.log("---------> Password Incorrect");
-          res.send("Password incorrect!");
+          res.sendStatus(401);
         }
       }
     });
   });
 });
 
+app.post("/createLink", (req, res) => {
+  console.log('req.body: ', req.body);
+  const creatorId = req.body.creatorId;
+  const url = req.body.url;
+  const description = req.body.description;
+  const timeCreated = req.body.timeCreated;
+  const title = req.body.title;
+  const creatorUsername = req.body.creatorUsername;
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlInsert = "INSERT INTO linkTable VALUES (0,?,?,?,?,?,?)";
+    const insert_query = mysql.format(sqlInsert, [
+      creatorId,
+      url,
+      description,
+      timeCreated,
+      title,
+      creatorUsername,
+    ]);
+    await connection.query(insert_query, (err, result) => {
+      connection.release();
+      if (err) throw err;
+      res.sendStatus(201);
+    });
+  });
+});
 
-app.post("addlink", (req, res) => {
-  console.log({ req });
-})
+app.get("/linksById/:creatorId", (req, res) => {
+  const creatorId = req.params.creatorId;
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlSearch = "Select * from linkTable where creatorId = ?";
+    const search_query = mysql.format(sqlSearch, [creatorId]);
+    await connection.query(search_query, async (err, result) => {
+      connection.release();
+
+      if (err) throw err;
+      if (result.length == 0) {
+        res.sendStatus(404);
+      } else {
+        res.status(200).send(result);
+      }
+    });
+  });
+});
