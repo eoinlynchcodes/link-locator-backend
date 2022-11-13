@@ -17,7 +17,6 @@ const db = mysql.createPool({
   database: DB_DATABASE,
   port: DB_PORT,
 });
-//remember to include .env in .gitignore file
 
 db.getConnection((err, connection) => {
   if (err) throw err;
@@ -30,9 +29,12 @@ app.listen(port, () => console.log(`Server Started on port ${port}...`));
 const bcrypt = require("bcrypt");
 app.use(express.json());
 app.use(cors());
-//middleware to read req.body.<params>
 
-//CREATE USER
+app.get("/test", (req, res) => {
+  const testData = "Hello";
+  res.status(200).send(testData);
+})
+
 app.post("/createUser", async (req, res) => {
   const username = req.body.username;
   const fullName = req.body.fullName;
@@ -128,12 +130,33 @@ app.get("/linksById/:creatorId", (req, res) => {
     const search_query = mysql.format(sqlSearch, [creatorId]);
     await connection.query(search_query, async (err, result) => {
       connection.release();
-
       if (err) throw err;
       if (result.length == 0) {
         res.sendStatus(404);
       } else {
         res.status(200).send(result);
+      }
+    });
+  });
+});
+
+app.post("/search/:fullName", async (req, res) => {
+  const fullName = req.params.fullName;
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlSearch = "Select * from userTable where fullName = ?";
+    const search_query = mysql.format(sqlSearch, [fullName]);
+    await connection.query(search_query, async (err, result) => {
+      connection.release();
+      if (err) throw err;
+      if (result.length == 0) {
+        res.sendStatus(404);
+      } else {
+        if (result) {
+          res.status(200).send(result);
+        } else {
+          res.sendStatus(401);
+        }
       }
     });
   });
