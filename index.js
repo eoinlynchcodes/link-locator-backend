@@ -32,7 +32,7 @@ app.use(cors());
 
 app.get("/test", (req, res) => {
   const testData = "Hello";
-  res.status(200).send(testData);
+  res.sendStatus(200).send(testData);
 })
 
 app.post("/createUser", async (req, res) => {
@@ -68,6 +68,7 @@ app.post("/createUser", async (req, res) => {
 app.post("/login", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
+  console.log('login was hit');
   db.getConnection(async (err, connection) => {
     if (err) throw err;
     const sqlSearch = "Select * from userTable where username = ?";
@@ -86,7 +87,7 @@ app.post("/login", (req, res) => {
           username: result[0].username,
         };
         if (await bcrypt.compare(password, hashedPassword)) {
-          res.status(200).send(dataForLocalStorage);
+          res.send(dataForLocalStorage);
         } else {
           res.sendStatus(401);
         }
@@ -96,7 +97,6 @@ app.post("/login", (req, res) => {
 });
 
 app.post("/createLink", (req, res) => {
-  console.log('req.body: ', req.body);
   const creatorId = req.body.creatorId;
   const url = req.body.url;
   const description = req.body.description;
@@ -134,7 +134,7 @@ app.get("/linksById/:creatorId", (req, res) => {
       if (result.length == 0) {
         res.sendStatus(404);
       } else {
-        res.status(200).send(result);
+        res.sendStatus(200).send(result);
       }
     });
   });
@@ -153,10 +153,68 @@ app.post("/search/:fullName", async (req, res) => {
         res.sendStatus(404);
       } else {
         if (result) {
-          res.status(200).send(result);
+          res.send(result);
         } else {
           res.sendStatus(401);
         }
+      }
+    });
+  });
+});
+
+app.post("/follow", (req, res) => {
+  const loggedInUserId = req.body.loggedInUserId;
+  const userIdToFollow = req.body.userIdToFollow;
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlInsert = "INSERT INTO followersTable VALUES (0, ?, ?)";
+    const insert_query = mysql.format(sqlInsert, [
+      loggedInUserId,
+      userIdToFollow
+    ]);
+    await connection.query(insert_query, (err, result) => {
+      connection.release();
+      if (err) throw err;
+      res.sendStatus(201);
+    });
+  });
+});
+
+app.get("/followers/:loggedInUserId", (req, res) => {
+  const loggedInUserId = req.params.loggedInUserId;
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlSearch = "Select * from followersTable where loggedInUserId = ?";
+    const search_query = mysql.format(sqlSearch, [loggedInUserId]);
+    await connection.query(search_query, async (err, result) => {
+      connection.release();
+      if (err) throw err;
+      if (result.length == 0) {
+        res.sendStatus(404);
+      } else {
+        const followers = result.length;
+        res.send(`${followers}`);
+      }
+    });
+  });
+});
+
+
+app.get("/following/:loggedInUserId", (req, res) => {
+  const loggedInUserId = req.params.loggedInUserId;
+
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlSearch = "Select * from followersTable where loggedInUserId = ?";
+    const search_query = mysql.format(sqlSearch, [loggedInUserId]);
+    await connection.query(search_query, async (err, result) => {
+      connection.release();
+      if (err) throw err;
+      if (result.length === 0) {
+        res.sendStatus(404);
+      } else {
+        const following = result.length;        
+        res.send(`${following}`);
       }
     });
   });
