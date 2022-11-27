@@ -68,7 +68,6 @@ app.post("/createUser", async (req, res) => {
 app.post("/login", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
-  console.log('login was hit');
   db.getConnection(async (err, connection) => {
     if (err) throw err;
     const sqlSearch = "Select * from userTable where username = ?";
@@ -134,7 +133,7 @@ app.get("/linksById/:creatorId", (req, res) => {
       if (result.length == 0) {
         res.sendStatus(404);
       } else {
-        res.sendStatus(200).send(result);
+        res.send(result);
       }
     });
   });
@@ -167,7 +166,7 @@ app.post("/follow", (req, res) => {
   const userIdToFollow = req.body.userIdToFollow;
   db.getConnection(async (err, connection) => {
     if (err) throw err;
-    const sqlInsert = "INSERT INTO followersTable VALUES (0, ?, ?)";
+    const sqlInsert = "INSERT INTO followingTable VALUES (0, ?, ?)";
     const insert_query = mysql.format(sqlInsert, [
       loggedInUserId,
       userIdToFollow
@@ -184,7 +183,7 @@ app.get("/followers/:loggedInUserId", (req, res) => {
   const loggedInUserId = req.params.loggedInUserId;
   db.getConnection(async (err, connection) => {
     if (err) throw err;
-    const sqlSearch = "Select * from followersTable where loggedInUserId = ?";
+    const sqlSearch = "Select * from followingTable where loggedInUserId = ?";
     const search_query = mysql.format(sqlSearch, [loggedInUserId]);
     await connection.query(search_query, async (err, result) => {
       connection.release();
@@ -205,7 +204,7 @@ app.get("/following/:loggedInUserId", (req, res) => {
 
   db.getConnection(async (err, connection) => {
     if (err) throw err;
-    const sqlSearch = "Select * from followersTable where loggedInUserId = ?";
+    const sqlSearch = "Select * from followingTable where loggedInUserId = ?";
     const search_query = mysql.format(sqlSearch, [loggedInUserId]);
     await connection.query(search_query, async (err, result) => {
       connection.release();
@@ -215,6 +214,46 @@ app.get("/following/:loggedInUserId", (req, res) => {
       } else {
         const following = result.length;        
         res.send(`${following}`);
+      }
+    });
+  });
+});
+
+
+app.get("/feed/:loggedInUserId", (req, res) => {
+  const loggedInUserId = req.params.loggedInUserId;
+
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+    const sqlSearch = `SELECT followingTable.loggedInUserId, followingTable.followingUserId, linkTable.linkId, linkTable.creatorId, linkTable.url, linkTable.description, linkTable.timeCreated, linkTable.creatorUsername, linkTable.title FROM followingTable, linkTable WHERE followingTable.loggedInUserId = ${loggedInUserId};`
+
+    const search_query = mysql.format(sqlSearch, [loggedInUserId]);
+    await connection.query(search_query, async (err, result) => {
+      connection.release();
+      if (err) throw err;
+      if (result.length === 0) {
+        res.sendStatus(404);
+      } else {    
+        res.send(result);
+      }
+    });
+  });
+});
+
+app.delete("/linkById/:linkId", (req, res) => {
+  const linkId = req.params.linkId;
+  db.getConnection(async (err, connection) => {
+    if (err) throw err;
+
+    const sqlSearch = `DELETE FROM linkTable WHERE linkId = ${linkId};    `
+    const search_query = mysql.format(sqlSearch, [linkId]);
+    await connection.query(search_query, async (err, result) => {
+      connection.release();
+      if (err) throw err;
+      if (result.length === 0) {
+        res.sendStatus(404);
+      } else {    
+        res.send(result);
       }
     });
   });
